@@ -1,0 +1,249 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>Analyse de conversation</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f7f7f8;
+            color: #333;
+            margin: 0;
+            padding: 0;
+        }
+
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            padding: 20px;
+            background-color: #ffffff;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
+            border-radius: 8px;
+        }
+
+        h1 {
+            text-align: center;
+            color: #1a73e8;
+        }
+
+        .dropzone {
+            height: 200px;
+            border: 2px dashed #1a73e8;
+            text-align: center;
+            padding: 50px;
+            margin: 20px 0;
+            border-radius: 8px;
+            background-color: #f0f4ff;
+            transition: border 0.3s ease;
+        }
+
+        .dropzone.dragover {
+            border-color: #0056b3;
+        }
+
+        #analyser-btn {
+            display: block;
+            width: 100%;
+            padding: 10px;
+            background-color: #1a73e8;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            margin-top: 20px;
+        }
+
+        #results {
+            margin-top: 20px;
+        }
+
+        .result-item {
+            margin-bottom: 15px;
+        }
+
+        .result-item span {
+            font-weight: bold;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>Analyse de conversation</h1>
+        <div class="dropzone" id="dropzone">
+            <p>Faites glisser et déposez votre fichier JSON ici</p>
+        </div>
+        <button id="analyser-btn">Analyser</button>
+        <div id="results"></div>
+    </div>
+
+    <script>
+        const dropzone = document.getElementById('dropzone');
+        const analyserBtn = document.getElementById('analyser-btn');
+        const resultsDiv = document.getElementById('results');
+        let jsonData = null;
+
+        dropzone.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            dropzone.classList.add('dragover');
+        });
+
+        dropzone.addEventListener('dragleave', () => {
+            dropzone.classList.remove('dragover');
+        });
+
+        dropzone.addEventListener('drop', (e) => {
+            e.preventDefault();
+            dropzone.classList.remove('dragover');
+
+            const file = e.dataTransfer.files[0];
+            const reader = new FileReader();
+
+            reader.onload = (event) => {
+                jsonData = JSON.parse(event.target.result);
+                alert('Fichier JSON chargé avec succès. Cliquez sur "Analyser" pour voir les résultats.');
+            };
+
+            reader.readAsText(file);
+        });
+
+        analyserBtn.addEventListener('click', () => {
+            if (!jsonData) {
+                alert('Veuillez d\'abord déposer un fichier JSON.');
+                return;
+            }
+
+            const promptsCount = compterPrompts(jsonData);
+            const conversations = jsonData.length;
+            const promptsPerConversation = (promptsCount / conversations).toFixed(2);
+            const maxPromptsConversation = getMaxPromptsConversation(jsonData);
+            const minPromptsConversation = getMinPromptsConversation(jsonData);
+            const secondMinPromptsConversation = getSecondMinPromptsConversation(jsonData);
+            const secondMaxPromptsConversation = getSecondMaxPromptsConversation(jsonData);
+            const totalCharacters = getTotalCharacters(jsonData);
+
+            resultsDiv.innerHTML = `
+                <div class="result-item"><span>Nombre total de conversations:</span> ${conversations}</div>
+                <div class="result-item"><span>Nombre total de prompts:</span> ${promptsCount}</div>
+                <div class="result-item"><span>Nombre moyen de prompts par conversation:</span> ${promptsPerConversation}</div>
+                <div class="result-item"><span>Nombre max de prompts dans une conversation:</span> ${maxPromptsConversation}</div>
+                <div class="result-item"><span>Conversation avec le plus de prompts:</span> ${getConversationTitle(jsonData, maxPromptsConversation)}</div>
+                <div class="result-item"><span>Lien de la conversation avec le plus de prompts:</span> <a href="https://chatgpt.com/c/${getConversationId(jsonData, maxPromptsConversation)}" target="_blank">https://chatgpt.com/c/${getConversationId(jsonData, maxPromptsConversation)}</a></div>
+                <div class="result-item"><span>Conversation avec le moins de prompts:</span> ${getConversationTitle(jsonData, minPromptsConversation)}</div>
+                <div class="result-item"><span>Deuxième conversation avec le moins de prompts:</span> ${getConversationTitle(jsonData, secondMinPromptsConversation)}</div>
+                <div class="result-item"><span>Deuxième conversation avec le plus de prompts:</span> ${getConversationTitle(jsonData, secondMaxPromptsConversation)}</div>
+                <div class="result-item"><span>Nombre de prompts dans la deuxième conversation avec le plus de prompts:</span> ${getPromptsCount(jsonData, secondMaxPromptsConversation)}</div>
+                <div class="result-item"><span>Cumul des deux plus grandes conversations:</span> ${getTotalPrompts(jsonData, maxPromptsConversation, secondMaxPromptsConversation)}</div>
+                <div class="result-item"><span>Nombre total de caractères dans les conversations:</span> ${totalCharacters}
+            `;
+        });
+
+        function compterPrompts(jsonData) {
+            let promptsCount = 0;
+            for (const item of jsonData) {
+                for (const key in item.mapping) {
+                    const value = item.mapping[key];
+                    if (value.message && value.message.author.role === 'user') {
+                        promptsCount++;
+                    }
+                }
+            }
+            return promptsCount;
+        }
+
+        function getMaxPromptsConversation(jsonData) {
+            let maxPrompts = 0;
+            for (const item of jsonData) {
+                const promptsCount = Object.keys(item.mapping).length;
+                if (promptsCount > maxPrompts) {
+                    maxPrompts = promptsCount;
+                }
+            }
+            return maxPrompts;
+        }
+
+        function getMinPromptsConversation(jsonData) {
+            let minPrompts = Infinity;
+            for (const item of jsonData) {
+                const promptsCount = Object.keys(item.mapping).length;
+                if (promptsCount < minPrompts) {
+                    minPrompts = promptsCount;
+                }
+            }
+            return minPrompts;
+        }
+
+        function getSecondMinPromptsConversation(jsonData) {
+            const minPrompts = getMinPromptsConversation(jsonData);
+            let secondMinPrompts = Infinity;
+            for (const item of jsonData) {
+                const promptsCount = Object.keys(item.mapping).length;
+                if (promptsCount > minPrompts && promptsCount < secondMinPrompts) {
+                    secondMinPrompts = promptsCount;
+                }
+            }
+            return secondMinPrompts;
+        }
+
+        function getSecondMaxPromptsConversation(jsonData) {
+            const maxPrompts = getMaxPromptsConversation(jsonData);
+            let secondMaxPrompts = 0;
+            for (const item of jsonData) {
+                const promptsCount = Object.keys(item.mapping).length;
+                if (promptsCount < maxPrompts && promptsCount > secondMaxPrompts) {
+                    secondMaxPrompts = promptsCount;
+                }
+            }
+            return secondMaxPrompts;
+        }
+
+        function getConversationTitle(jsonData, promptsCount) {
+            for (const item of jsonData) {
+                if (Object.keys(item.mapping).length === promptsCount) {
+                    return item.title;
+                }
+            }
+            return '';
+        }
+
+        function getConversationId(jsonData, promptsCount) {
+            for (const item of jsonData) {
+                if (Object.keys(item.mapping).length === promptsCount) {
+                    return item.conversation_id;
+                }
+            }
+            return '';
+        }
+
+        function getPromptsCount(jsonData, promptsCount) {
+            for (const item of jsonData) {
+                if (Object.keys(item.mapping).length === promptsCount) {
+                    return Object.keys(item.mapping).length;
+                }
+            }
+            return 0;
+        }
+
+        function getTotalPrompts(jsonData, maxPrompts, secondMaxPrompts) {
+            let totalPrompts = 0;
+            for (const item of jsonData) {
+                const promptsCount = Object.keys(item.mapping).length;
+                if (promptsCount === maxPrompts || promptsCount === secondMaxPrompts) {
+                    totalPrompts += promptsCount;
+                }
+            }
+            return totalPrompts;
+        }
+
+        function getTotalCharacters(jsonData) {
+            let totalCharacters = 0;
+            for (const item of jsonData) {
+                totalCharacters += item.title.length;
+            }
+            return totalCharacters;
+        }
+    </script>
+</body>
+
+</html>
