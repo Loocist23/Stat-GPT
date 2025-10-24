@@ -96,6 +96,44 @@ h1 {
     cursor: not-allowed;
 }
 
+.secondary-button {
+    display: inline-flex;
+    justify-content: center;
+    align-items: center;
+    gap: 8px;
+    padding: 12px 24px;
+    border-radius: 999px;
+    border: 1px solid rgba(26, 115, 232, 0.5);
+    background-color: rgba(26, 115, 232, 0.08);
+    color: #1a73e8;
+    font-size: 15px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background-color 0.2s ease, color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.secondary-button:hover,
+.secondary-button:focus-visible {
+    background-color: rgba(26, 115, 232, 0.16);
+    color: #0b5394;
+    box-shadow: 0 16px 30px rgba(15, 23, 42, 0.12);
+    outline: none;
+}
+
+.secondary-button:focus-visible {
+    box-shadow: 0 0 0 3px rgba(26, 115, 232, 0.35);
+}
+
+.secondary-button:active {
+    transform: translateY(1px);
+}
+
+.secondary-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    box-shadow: none;
+}
+
 .notification {
     margin-top: 16px;
     padding: 14px 18px;
@@ -224,6 +262,141 @@ section h2 {
     background: linear-gradient(90deg, rgba(26, 115, 232, 0.75), rgba(26, 115, 232, 1));
 }
 
+body.is-modal-open {
+    overflow: hidden;
+}
+
+.modal {
+    position: fixed;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    z-index: 1000;
+}
+
+.modal.is-visible {
+    display: flex;
+}
+
+.modal-backdrop {
+    position: absolute;
+    inset: 0;
+    background: rgba(15, 23, 42, 0.6);
+    backdrop-filter: blur(2px);
+}
+
+.modal-dialog {
+    position: relative;
+    background: #ffffff;
+    border-radius: 18px;
+    box-shadow: 0 32px 80px rgba(15, 23, 42, 0.25);
+    width: min(1040px, 92vw);
+    max-height: 92vh;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 18px 28px;
+    border-bottom: 1px solid #e2e8f0;
+    gap: 12px;
+}
+
+.modal-header h2 {
+    margin: 0;
+    font-size: 20px;
+    color: #1a202c;
+}
+
+.modal-body {
+    padding: 0 28px 28px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    height: 100%;
+}
+
+.modal-description {
+    margin: 16px 0 0;
+    color: #475569;
+    font-size: 14px;
+}
+
+.modal-gallery {
+    flex: 1;
+    display: grid;
+    gap: 20px;
+    grid-template-columns: repeat(auto-fill, minmax(180px, 1fr));
+    overflow-y: auto;
+    padding: 16px 4px;
+    overscroll-behavior: contain;
+}
+
+.modal-gallery-item {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin: 0;
+}
+
+.modal-gallery img {
+    width: 100%;
+    border-radius: 14px;
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.2);
+    cursor: zoom-in;
+    transition: transform 0.3s ease, box-shadow 0.3s ease;
+    background: #0f172a10;
+    transform-origin: center center;
+}
+
+.modal-gallery img:focus-visible {
+    outline: 3px solid rgba(26, 115, 232, 0.45);
+    outline-offset: 4px;
+}
+
+.modal-gallery img.is-zoomed {
+    transform: scale(1.6);
+    box-shadow: 0 24px 50px rgba(15, 23, 42, 0.3);
+    cursor: zoom-out;
+    z-index: 1;
+}
+
+.modal-gallery img.has-error {
+    cursor: not-allowed;
+    box-shadow: none;
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+.modal-gallery figcaption {
+    font-size: 13px;
+    color: #475569;
+    word-break: break-word;
+}
+
+.modal-close {
+    border: none;
+    background: none;
+    color: #64748b;
+    font-size: 28px;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s ease;
+}
+
+.modal-close:hover,
+.modal-close:focus-visible {
+    color: #1a73e8;
+    outline: none;
+}
+
 .empty-state {
     text-align: center;
     color: #64748b;
@@ -240,5 +413,24 @@ section h2 {
 
     .dropzone {
         padding: 24px;
+    }
+
+    .modal-dialog {
+        width: 94vw;
+        max-height: 90vh;
+        border-radius: 14px;
+    }
+
+    .modal-header {
+        padding: 16px 20px;
+    }
+
+    .modal-body {
+        padding: 0 20px 20px;
+    }
+
+    .modal-gallery {
+        grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+        gap: 16px;
     }
 }

@@ -6,6 +6,30 @@ const resultsDiv = document.getElementById('results');
 const notification = document.getElementById('notification');
 const fileInfo = document.getElementById('file-info');
 
+const imageModal = document.createElement('div');
+imageModal.id = 'image-modal';
+imageModal.className = 'modal';
+imageModal.setAttribute('aria-hidden', 'true');
+imageModal.innerHTML = `
+    <div class="modal-backdrop" data-action="close-image-modal"></div>
+    <div class="modal-dialog" role="dialog" aria-modal="true" aria-labelledby="image-modal-title">
+        <header class="modal-header">
+            <h2 id="image-modal-title">Galerie d'images</h2>
+            <button type="button" class="modal-close" data-action="close-image-modal" aria-label="Fermer la galerie">&times;</button>
+        </header>
+        <div class="modal-body">
+            <p class="modal-description">Cliquez sur une image pour zoomer et naviguez avec le défilement.</p>
+            <div class="modal-gallery" tabindex="0"></div>
+        </div>
+    </div>
+`;
+document.body.appendChild(imageModal);
+
+const modalGallery = imageModal.querySelector('.modal-gallery');
+const modalDescription = imageModal.querySelector('.modal-description');
+let imageObserver = null;
+let lastActiveElement = null;
+
 function createAssetSummary() {
     return {
         total: 0,
@@ -26,6 +50,7 @@ function createEmptyMetadata() {
         libraryAssets: null,
         looseAssets: createAssetSummary(),
         dalleAssets: 0,
+        imageAssets: [],
     };
 }
 
@@ -55,7 +80,226 @@ function showNotification(message, type = 'info') {
     }, timeout);
 }
 
+function releaseImageAssets(assets) {
+    if (!Array.isArray(assets)) {
+        return;
+    }
+
+    assets.forEach((asset) => {
+        if (asset?.objectUrl) {
+            URL.revokeObjectURL(asset.objectUrl);
+            delete asset.objectUrl;
+        }
+    });
+}
+
+function clearImageGallery() {
+    if (imageObserver) {
+        imageObserver.disconnect();
+        imageObserver = null;
+    }
+
+    if (modalGallery) {
+        modalGallery.innerHTML = '';
+    }
+
+    if (modalDescription) {
+        modalDescription.textContent = "Cliquez sur une image pour zoomer et naviguez avec le défilement.";
+    }
+}
+
+function handleModalKeydown(event) {
+    if (event.key === 'Escape') {
+        closeImageModal();
+    }
+}
+
+function closeImageModal({ restoreFocus = true } = {}) {
+    if (!imageModal.classList.contains('is-visible')) {
+        return;
+    }
+
+    modalGallery.querySelectorAll('img.is-zoomed').forEach((img) => {
+        img.classList.remove('is-zoomed');
+        img.setAttribute('aria-pressed', 'false');
+    });
+    imageModal.classList.remove('is-visible');
+    imageModal.setAttribute('aria-hidden', 'true');
+    document.body.classList.remove('is-modal-open');
+    document.removeEventListener('keydown', handleModalKeydown);
+
+    if (restoreFocus && lastActiveElement && document.contains(lastActiveElement)) {
+        lastActiveElement.focus();
+    }
+    lastActiveElement = null;
+}
+
+async function loadAssetImage(imageElement, asset) {
+    if (!imageElement || !asset) {
+        return;
+    }
+
+    if (!asset.entry || typeof asset.entry.async !== 'function') {
+        imageElement.alt = `Impossible de charger ${asset.name || 'cette image'}.`;
+        imageElement.classList.add('has-error');
+        return;
+    }
+
+    if (asset.objectUrl) {
+        imageElement.src = asset.objectUrl;
+        return;
+    }
+
+    try {
+        const blob = await asset.entry.async('blob');
+        const url = URL.createObjectURL(blob);
+        asset.objectUrl = url;
+        imageElement.src = url;
+    } catch (error) {
+        console.warn(`Impossible de charger ${asset.path || asset.name}`, error);
+        imageElement.alt = `Impossible de charger ${asset.name || 'cette image'}.`;
+        imageElement.classList.add('has-error');
+    }
+}
+
+function populateImageGallery() {
+    clearImageGallery();
+
+    if (!exportMetadata.imageAssets.length) {
+        return;
+    }
+
+    const fragment = document.createDocumentFragment();
+
+    exportMetadata.imageAssets.forEach((asset, index) => {
+        const figure = document.createElement('figure');
+        figure.className = 'modal-gallery-item';
+
+        const image = document.createElement('img');
+        image.alt = asset?.name ? `Image ${asset.name}` : `Image ${index + 1}`;
+        image.loading = 'lazy';
+        image.decoding = 'async';
+        image.dataset.index = String(index);
+        image.tabIndex = 0;
+        image.setAttribute('role', 'button');
+        image.setAttribute('aria-pressed', 'false');
+        if (asset?.name) {
+            image.title = asset.name;
+        }
+        figure.appendChild(image);
+
+        if (asset?.name) {
+            const caption = document.createElement('figcaption');
+            const location = asset?.folder && asset.folder !== '/' ? `${asset.folder}/${asset.name}` : asset.name;
+            caption.textContent = location;
+            figure.appendChild(caption);
+        }
+
+        fragment.appendChild(figure);
+    });
+
+    modalGallery.appendChild(fragment);
+
+    const images = modalGallery.querySelectorAll('img');
+
+    if (typeof IntersectionObserver === 'undefined') {
+        images.forEach((img) => {
+            const assetIndex = Number.parseInt(img.dataset.index, 10);
+            const asset = exportMetadata.imageAssets[assetIndex];
+            if (asset) {
+                loadAssetImage(img, asset);
+            }
+        });
+        return;
+    }
+
+    imageObserver = new IntersectionObserver(
+        (entries, observer) => {
+            entries.forEach((entry) => {
+                if (!entry.isIntersecting) {
+                    return;
+                }
+
+                observer.unobserve(entry.target);
+                const img = entry.target;
+                const assetIndex = Number.parseInt(img.dataset.index, 10);
+                const asset = exportMetadata.imageAssets[assetIndex];
+                if (asset) {
+                    loadAssetImage(img, asset);
+                }
+            });
+        },
+        {
+            root: modalGallery,
+            rootMargin: '100px',
+        },
+    );
+
+    images.forEach((img) => imageObserver.observe(img));
+}
+
+function openImageModal() {
+    if (!exportMetadata.imageAssets.length) {
+        showNotification('Aucune image trouvée dans l\'export.', 'error');
+        return;
+    }
+
+    if (!modalGallery.childElementCount) {
+        populateImageGallery();
+    }
+
+    if (modalDescription) {
+        const total = exportMetadata.imageAssets.length;
+        modalDescription.textContent = `Cliquez sur une image pour zoomer (${total} image${total > 1 ? 's' : ''}).`;
+    }
+
+    lastActiveElement = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+    imageModal.classList.add('is-visible');
+    imageModal.setAttribute('aria-hidden', 'false');
+    document.body.classList.add('is-modal-open');
+    document.addEventListener('keydown', handleModalKeydown);
+    modalGallery.scrollTop = 0;
+
+    const closeButton = imageModal.querySelector('.modal-close');
+    if (closeButton) {
+        closeButton.focus();
+    }
+}
+
+imageModal.addEventListener('click', (event) => {
+    const target = event.target;
+    if (target instanceof HTMLElement && target.dataset.action === 'close-image-modal') {
+        closeImageModal();
+    }
+});
+
+modalGallery.addEventListener('click', (event) => {
+    const target = event.target;
+    if (!(target instanceof HTMLImageElement)) {
+        return;
+    }
+
+    target.classList.toggle('is-zoomed');
+    target.setAttribute('aria-pressed', target.classList.contains('is-zoomed') ? 'true' : 'false');
+});
+
+modalGallery.addEventListener('keydown', (event) => {
+    if (event.key !== 'Enter' && event.key !== ' ') {
+        return;
+    }
+
+    const target = event.target;
+    if (target instanceof HTMLImageElement) {
+        event.preventDefault();
+        target.classList.toggle('is-zoomed');
+        target.setAttribute('aria-pressed', target.classList.contains('is-zoomed') ? 'true' : 'false');
+    }
+});
+
 function resetState() {
+    closeImageModal({ restoreFocus: false });
+    releaseImageAssets(exportMetadata.imageAssets);
+    clearImageGallery();
     jsonData = [];
     invalidItems = 0;
     exportMetadata = createEmptyMetadata();
@@ -377,6 +621,18 @@ async function collectZipMetadata(zip) {
         }
 
         const segments = entry.name.split('/');
+        const baseName = segments[segments.length - 1];
+        const extension = getExtension(baseName);
+
+        if (imageExtensions.has(extension)) {
+            metadata.imageAssets.push({
+                name: baseName,
+                path: entry.name,
+                folder: segments.slice(0, -1).join('/') || '/',
+                entry,
+            });
+        }
+
         if (segments.length >= 2 && conversationIdRegex.test(segments[0]) && segments[1] === 'audio') {
             const conversationId = segments[0];
             const info = audioByConversation.get(conversationId) || { count: 0 };
@@ -387,7 +643,7 @@ async function collectZipMetadata(zip) {
 
         if (segments[0].startsWith('user-')) {
             libraryFolderName = libraryFolderName || segments[0];
-            incrementAssetCounters(librarySummary, getExtension(entry.name));
+            incrementAssetCounters(librarySummary, extension);
             return;
         }
 
@@ -396,9 +652,8 @@ async function collectZipMetadata(zip) {
             return;
         }
 
-        const baseName = segments[segments.length - 1];
         if (baseName.startsWith('file-') || baseName.startsWith('file_')) {
-            incrementAssetCounters(looseAssets, getExtension(baseName));
+            incrementAssetCounters(looseAssets, extension);
         }
     });
 
@@ -417,6 +672,10 @@ async function collectZipMetadata(zip) {
     }
 
     metadata.dalleAssets = dalleCount;
+
+    if (metadata.imageAssets.length) {
+        metadata.imageAssets.sort((a, b) => a.path.localeCompare(b.path));
+    }
 
     return metadata;
 }
@@ -555,6 +814,29 @@ function renderLibraryAssetsSection(libraryAssets) {
         } (${summary.images} image${summary.images > 1 ? 's' : ''}, ${summary.audio} audio${summary.audio > 1 ? 's' : ''
         }, ${summary.other} autre${summary.other > 1 ? 's' : ''}).</p>
                     ${renderExtensionList(summary.byExtension)}
+                </section>
+            `;
+}
+
+function renderImageAssetsSection(imageAssets) {
+    if (!imageAssets.length) {
+        return '';
+    }
+
+    const total = imageAssets.length;
+    const previewItems = imageAssets
+        .map((asset) => (asset?.name ? `<code>${escapeHTML(asset.name)}</code>` : ''))
+        .filter(Boolean)
+        .slice(0, 4);
+    const preview = previewItems.join(', ');
+    const more = total > 4 ? '…' : '';
+
+    return `
+                <section>
+                    <h2>Images extraites</h2>
+                    <p>${total} image${total > 1 ? 's' : ''} détectée${total > 1 ? 's' : ''} dans l'export.</p>
+                    ${preview ? `<p>Aperçu : ${preview}${more}</p>` : ''}
+                    <button type="button" class="secondary-button" data-action="open-image-modal">Ouvrir la galerie d'images</button>
                 </section>
             `;
 }
@@ -738,6 +1020,9 @@ function renderResults(stats) {
         exportMetadata.audioAssets.length
             ? renderAudioAssetsSection(exportMetadata.audioAssets, metrics)
             : '',
+        exportMetadata.imageAssets.length
+            ? renderImageAssetsSection(exportMetadata.imageAssets)
+            : '',
         exportMetadata.libraryAssets ? renderLibraryAssetsSection(exportMetadata.libraryAssets) : '',
         renderLooseAssetsSection(exportMetadata.looseAssets),
         renderDalleSection(exportMetadata.dalleAssets),
@@ -745,6 +1030,14 @@ function renderResults(stats) {
     ].filter(Boolean);
 
     resultsDiv.innerHTML = [summarySection, highlightsSection, barSection, ...optionalSections].join('');
+    initializeResultsInteractions();
+}
+
+function initializeResultsInteractions() {
+    const openGalleryButton = resultsDiv.querySelector('[data-action="open-image-modal"]');
+    if (openGalleryButton) {
+        openGalleryButton.addEventListener('click', openImageModal);
+    }
 }
 
 function handleJsonImport(file, textContent) {
