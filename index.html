@@ -258,10 +258,15 @@
         <h1>Analyse de conversation</h1>
         <div class="upload-controls">
             <div class="dropzone" id="dropzone">
-                <p>Déposez votre export JSON ou cliquez pour le sélectionner</p>
+                <p>Déposez votre export ZIP/JSON ou cliquez pour le sélectionner</p>
                 <small>Compatibilité mobile améliorée · Taille maximale recommandée : 15&nbsp;Mo</small>
             </div>
-            <input type="file" accept="application/json" id="file-input" class="hidden-input" />
+            <input
+                type="file"
+                accept="application/json,application/zip,.json,.zip"
+                id="file-input"
+                class="hidden-input"
+            />
             <button class="primary-button" id="analyser-btn" disabled>
                 Analyser l'export
             </button>
@@ -271,6 +276,7 @@
         <div id="results" aria-live="polite"></div>
     </div>
 
+    <script src="https://cdn.jsdelivr.net/npm/jszip@3.10.1/dist/jszip.min.js"></script>
     <script>
         const dropzone = document.getElementById('dropzone');
         const fileInput = document.getElementById('file-input');
@@ -394,8 +400,12 @@
 
         function renderFileInfo(file, validCount) {
             const sizeInKB = file.size ? (file.size / 1024).toFixed(1) : '0';
+            const archiveInfo = file.originalZipName
+                ? `<strong>Archive :</strong> ${escapeHTML(file.originalZipName)}<br/>`
+                : '';
             fileInfo.innerHTML = `
-                <strong>Fichier sélectionné :</strong> ${escapeHTML(file.name)}<br/>
+                ${archiveInfo}
+                <strong>Fichier analysé :</strong> ${escapeHTML(file.name)}<br/>
                 <strong>Taille :</strong> ${sizeInKB} Ko<br/>
                 <strong>Conversations valides :</strong> ${validCount}${
                 invalidItems ? ` · <strong>Conversations ignorées :</strong> ${invalidItems}` : ''
@@ -577,7 +587,7 @@
 
                 jsonData = validConversations;
                 analyserBtn.disabled = false;
-                showNotification('Fichier JSON prêt à être analysé.', 'success');
+                showNotification('Données prêtes à être analysées.', 'success');
                 renderFileInfo(file, validConversations.length);
             } catch (error) {
                 resetState();
@@ -585,15 +595,52 @@
             }
         }
 
-        function readFile(file) {
+        async function readFile(file) {
             if (!file) {
                 return;
             }
 
-            const isJsonType = file.type === 'application/json' || file.type === '';
-            const hasJsonExtension = file.name?.toLowerCase().endsWith('.json');
+            resetState();
+
+            const lowerName = file.name?.toLowerCase() ?? '';
+            const isZipType =
+                file.type === 'application/zip' ||
+                file.type === 'application/x-zip-compressed' ||
+                lowerName.endsWith('.zip');
+
+            if (isZipType) {
+                showNotification('Extraction de l\'archive en cours...', 'info');
+                try {
+                    const zip = await JSZip.loadAsync(file);
+                    const candidates = Object.values(zip.files)
+                        .filter((entry) => !entry.dir && entry.name.toLowerCase().endsWith('conversations.json'))
+                        .sort((a, b) => a.name.length - b.name.length);
+
+                    if (!candidates.length) {
+                        throw new Error("Aucun fichier conversations.json trouvé dans l'archive.");
+                    }
+
+                    const conversationEntry = candidates[0];
+                    const content = await conversationEntry.async('string');
+                    const syntheticFile = {
+                        name: conversationEntry.name,
+                        size: file.size,
+                        originalZipName: file.name,
+                    };
+
+                    handleJsonImport(syntheticFile, content);
+                } catch (error) {
+                    resetState();
+                    showNotification(`Erreur lors de l'analyse de l'archive : ${error.message}`, 'error');
+                }
+
+                return;
+            }
+
+            const isJsonType = file.type === 'application/json' || file.type === '' || file.type === 'text/plain';
+            const hasJsonExtension = lowerName.endsWith('.json');
             if (!isJsonType && !hasJsonExtension) {
-                showNotification('Veuillez sélectionner un fichier JSON valide.', 'error');
+                showNotification('Veuillez sélectionner un fichier JSON ou ZIP valide.', 'error');
                 return;
             }
 
