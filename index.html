@@ -1,69 +1,254 @@
 <!DOCTYPE html>
-<html>
+<html lang="fr">
 
 <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Analyse de conversation</title>
     <style>
+        :root {
+            color-scheme: light;
+        }
+
+        * {
+            box-sizing: border-box;
+        }
+
         body {
-            font-family: Arial, sans-serif;
+            font-family: "Inter", "Segoe UI", Arial, sans-serif;
             background-color: #f7f7f8;
-            color: #333;
+            color: #1f2933;
             margin: 0;
             padding: 0;
         }
 
         .container {
-            max-width: 800px;
-            margin: 50px auto;
-            padding: 20px;
+            max-width: 960px;
+            margin: 40px auto 64px;
+            padding: 32px;
             background-color: #ffffff;
-            box-shadow: 0 0 10px rgba(0, 0, 0, 0.1);
-            border-radius: 8px;
+            box-shadow: 0 24px 48px rgba(15, 23, 42, 0.08);
+            border-radius: 16px;
         }
 
         h1 {
             text-align: center;
             color: #1a73e8;
+            margin-bottom: 24px;
+        }
+
+        .upload-controls {
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
         }
 
         .dropzone {
-            height: 200px;
+            position: relative;
+            min-height: 200px;
             border: 2px dashed #1a73e8;
             text-align: center;
-            padding: 50px;
-            margin: 20px 0;
-            border-radius: 8px;
-            background-color: #f0f4ff;
-            transition: border 0.3s ease;
+            padding: 40px;
+            border-radius: 16px;
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.08), rgba(26, 115, 232, 0));
+            transition: border-color 0.3s ease, transform 0.3s ease;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 12px;
+            cursor: pointer;
+        }
+
+        .dropzone p {
+            margin: 0;
+            font-size: 16px;
+        }
+
+        .dropzone small {
+            color: #4a5568;
         }
 
         .dropzone.dragover {
-            border-color: #0056b3;
+            border-color: #0b5394;
+            transform: scale(1.01);
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.12), rgba(26, 115, 232, 0.04));
         }
 
-        #analyser-btn {
-            display: block;
+        .hidden-input {
+            display: none;
+        }
+
+        .primary-button {
+            display: inline-flex;
+            justify-content: center;
+            align-items: center;
+            gap: 8px;
             width: 100%;
-            padding: 10px;
+            padding: 14px 20px;
             background-color: #1a73e8;
-            color: white;
+            color: #ffffff;
             border: none;
-            border-radius: 5px;
+            border-radius: 999px;
             font-size: 16px;
+            font-weight: 600;
             cursor: pointer;
-            margin-top: 20px;
+            transition: background-color 0.2s ease;
+        }
+
+        .primary-button:hover {
+            background-color: #0b5394;
+        }
+
+        .primary-button:disabled {
+            background-color: #9bbdf7;
+            cursor: not-allowed;
+        }
+
+        .notification {
+            margin-top: 16px;
+            padding: 14px 18px;
+            border-radius: 12px;
+            background-color: rgba(26, 115, 232, 0.12);
+            color: #0b5394;
+            display: none;
+        }
+
+        .notification.is-visible {
+            display: block;
+        }
+
+        .notification.error {
+            background-color: rgba(220, 38, 38, 0.12);
+            color: #b91c1c;
+        }
+
+        .notification.success {
+            background-color: rgba(22, 163, 74, 0.12);
+            color: #15803d;
+        }
+
+        #file-info {
+            margin-top: 16px;
+            padding: 16px;
+            border-radius: 12px;
+            background-color: #f1f5f9;
+            line-height: 1.6;
         }
 
         #results {
-            margin-top: 20px;
+            margin-top: 32px;
+            display: grid;
+            gap: 32px;
         }
 
-        .result-item {
-            margin-bottom: 15px;
+        section h2 {
+            margin-bottom: 16px;
+            color: #1a202c;
         }
 
-        .result-item span {
-            font-weight: bold;
+        .stats-grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+        }
+
+        .stat-card {
+            padding: 18px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, rgba(26, 115, 232, 0.08), rgba(26, 115, 232, 0));
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .stat-card span {
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: #4a5568;
+        }
+
+        .stat-card strong {
+            font-size: 24px;
+            color: #1a202c;
+        }
+
+        .card-grid {
+            display: grid;
+            gap: 16px;
+            grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
+        }
+
+        .card {
+            padding: 20px;
+            border-radius: 14px;
+            background-color: #ffffff;
+            border: 1px solid #e2e8f0;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.05);
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .card h3 {
+            margin: 0;
+            font-size: 18px;
+            color: #1a73e8;
+        }
+
+        .card p {
+            margin: 0;
+        }
+
+        .card a {
+            color: #1a73e8;
+            text-decoration: none;
+        }
+
+        .card a:hover {
+            text-decoration: underline;
+        }
+
+        .bar-chart {
+            display: grid;
+            gap: 12px;
+        }
+
+        .bar-item {
+            display: grid;
+            gap: 8px;
+        }
+
+        .bar-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 14px;
+            color: #1f2933;
+        }
+
+        .bar {
+            height: 10px;
+            border-radius: 999px;
+            background: linear-gradient(90deg, rgba(26, 115, 232, 0.75), rgba(26, 115, 232, 1));
+        }
+
+        .empty-state {
+            text-align: center;
+            color: #64748b;
+            padding: 24px;
+            border: 1px dashed #cbd5f5;
+            border-radius: 12px;
+        }
+
+        @media (max-width: 640px) {
+            .container {
+                margin: 16px;
+                padding: 24px;
+            }
+
+            .dropzone {
+                padding: 24px;
+            }
         }
     </style>
 </head>
@@ -71,21 +256,357 @@
 <body>
     <div class="container">
         <h1>Analyse de conversation</h1>
-        <div class="dropzone" id="dropzone">
-            <p>Faites glisser et déposez votre fichier JSON ici</p>
+        <div class="upload-controls">
+            <div class="dropzone" id="dropzone">
+                <p>Déposez votre export JSON ou cliquez pour le sélectionner</p>
+                <small>Compatibilité mobile améliorée · Taille maximale recommandée : 15&nbsp;Mo</small>
+            </div>
+            <input type="file" accept="application/json" id="file-input" class="hidden-input" />
+            <button class="primary-button" id="analyser-btn" disabled>
+                Analyser l'export
+            </button>
+            <div id="notification" class="notification" role="status" aria-live="polite"></div>
+            <div id="file-info" hidden></div>
         </div>
-        <button id="analyser-btn">Analyser</button>
-        <div id="results"></div>
+        <div id="results" aria-live="polite"></div>
     </div>
 
     <script>
         const dropzone = document.getElementById('dropzone');
+        const fileInput = document.getElementById('file-input');
         const analyserBtn = document.getElementById('analyser-btn');
         const resultsDiv = document.getElementById('results');
-        let jsonData = null;
+        const notification = document.getElementById('notification');
+        const fileInfo = document.getElementById('file-info');
 
-        dropzone.addEventListener('dragover', (e) => {
-            e.preventDefault();
+        let jsonData = [];
+        let invalidItems = 0;
+
+        resultsDiv.innerHTML = '<div class="empty-state">Importez un fichier pour générer les statistiques.</div>';
+
+        function escapeHTML(value) {
+            return String(value ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;');
+        }
+
+        function showNotification(message, type = 'info') {
+            notification.textContent = message;
+            notification.className = `notification ${type !== 'info' ? type : ''}`.trim();
+            notification.classList.add('is-visible');
+            const timeout = type === 'error' ? 6000 : 4000;
+            setTimeout(() => {
+                notification.classList.remove('is-visible');
+                notification.className = 'notification';
+            }, timeout);
+        }
+
+        function resetState() {
+            jsonData = [];
+            invalidItems = 0;
+            analyserBtn.disabled = true;
+            resultsDiv.innerHTML = '<div class="empty-state">Importez un fichier pour générer les statistiques.</div>';
+            fileInfo.hidden = true;
+            fileInfo.textContent = '';
+        }
+
+        function extractMessageText(message) {
+            if (!message || !message.content) {
+                return '';
+            }
+
+            const { content } = message;
+            if (Array.isArray(content.parts)) {
+                return content.parts.join(' ');
+            }
+
+            if (typeof content === 'string') {
+                return content;
+            }
+
+            if (typeof content.text === 'string') {
+                return content.text;
+            }
+
+            return '';
+        }
+
+        function validateConversation(item) {
+            return (
+                item &&
+                typeof item === 'object' &&
+                typeof item.conversation_id === 'string' &&
+                item.conversation_id.trim().length > 0 &&
+                typeof item.title === 'string' &&
+                item.title.trim().length > 0 &&
+                item.mapping &&
+                typeof item.mapping === 'object'
+            );
+        }
+
+        function getConversationMetrics(conversation) {
+            const mappingEntries = Object.values(conversation.mapping || {});
+            let userPrompts = 0;
+            let totalCharacters = conversation.title.length;
+
+            for (const node of mappingEntries) {
+                const authorRole = node?.message?.author?.role;
+                if (authorRole === 'user') {
+                    userPrompts += 1;
+                }
+
+                totalCharacters += extractMessageText(node?.message).length;
+            }
+
+            return {
+                title: conversation.title,
+                conversationId: conversation.conversation_id,
+                userPrompts,
+                totalCharacters,
+            };
+        }
+
+        function buildStats(data) {
+            const metrics = data.map(getConversationMetrics);
+            const sortedByPrompts = [...metrics].sort((a, b) => b.userPrompts - a.userPrompts);
+            const sortedByPromptsAsc = [...metrics].sort((a, b) => a.userPrompts - b.userPrompts);
+
+            const totalConversations = metrics.length;
+            const totalPrompts = metrics.reduce((sum, item) => sum + item.userPrompts, 0);
+            const totalCharacters = metrics.reduce((sum, item) => sum + item.totalCharacters, 0);
+
+            return {
+                metrics,
+                totalConversations,
+                totalPrompts,
+                averagePrompts: totalConversations ? totalPrompts / totalConversations : 0,
+                totalCharacters,
+                averageCharacters: totalConversations ? totalCharacters / totalConversations : 0,
+                maxConversation: sortedByPrompts[0],
+                secondMaxConversation: sortedByPrompts[1],
+                minConversation: sortedByPromptsAsc[0],
+                secondMinConversation: sortedByPromptsAsc[1],
+            };
+        }
+
+        function renderFileInfo(file, validCount) {
+            const sizeInKB = file.size ? (file.size / 1024).toFixed(1) : '0';
+            fileInfo.innerHTML = `
+                <strong>Fichier sélectionné :</strong> ${escapeHTML(file.name)}<br/>
+                <strong>Taille :</strong> ${sizeInKB} Ko<br/>
+                <strong>Conversations valides :</strong> ${validCount}${
+                invalidItems ? ` · <strong>Conversations ignorées :</strong> ${invalidItems}` : ''
+            }
+            `;
+            fileInfo.hidden = false;
+        }
+
+        function buildLink(conversation) {
+            if (!conversation?.conversationId) {
+                return '';
+            }
+
+            try {
+                const url = new URL(conversation.conversationId);
+                return `<a href="${escapeHTML(url.toString())}" target="_blank" rel="noopener noreferrer">Ouvrir la conversation</a>`;
+            } catch (error) {
+                const fallback = `https://chat.openai.com/c/${encodeURIComponent(conversation.conversationId)}`;
+                return `<a href="${fallback}" target="_blank" rel="noopener noreferrer">Ouvrir la conversation</a>`;
+            }
+        }
+
+        function renderBarChart(metrics) {
+            if (!metrics.length) {
+                return '<div class="empty-state">Aucune donnée à visualiser pour le moment.</div>';
+            }
+
+            const sorted = [...metrics]
+                .sort((a, b) => b.userPrompts - a.userPrompts)
+                .slice(0, 5);
+            const maxPrompts = sorted[0]?.userPrompts || 1;
+
+            return sorted
+                .map((item) => {
+                    const ratio = maxPrompts ? (item.userPrompts / maxPrompts) * 100 : 0;
+                    return `
+                        <div class="bar-item">
+                            <div class="bar-label">
+                                <span>${escapeHTML(item.title)}</span>
+                                <span>${item.userPrompts} prompts</span>
+                            </div>
+                            <div class="bar" style="width: ${ratio}%"></div>
+                        </div>
+                    `;
+                })
+                .join('');
+        }
+
+        function renderResults(stats) {
+            if (!stats.totalConversations) {
+                resultsDiv.innerHTML = '<div class="empty-state">Importez un fichier pour générer les statistiques.</div>';
+                return;
+            }
+
+            const {
+                totalConversations,
+                totalPrompts,
+                averagePrompts,
+                totalCharacters,
+                averageCharacters,
+                maxConversation,
+                secondMaxConversation,
+                minConversation,
+                secondMinConversation,
+                metrics,
+            } = stats;
+
+            resultsDiv.innerHTML = `
+                <section>
+                    <h2>Résumé global</h2>
+                    <div class="stats-grid">
+                        <div class="stat-card">
+                            <span>Conversations</span>
+                            <strong>${totalConversations}</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>Prompts utilisateurs</span>
+                            <strong>${totalPrompts}</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>Moyenne prompts / conv.</span>
+                            <strong>${averagePrompts.toFixed(2)}</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>Caractères analysés</span>
+                            <strong>${totalCharacters.toLocaleString('fr-FR')}</strong>
+                        </div>
+                        <div class="stat-card">
+                            <span>Moyenne caractères / conv.</span>
+                            <strong>${Math.round(averageCharacters).toLocaleString('fr-FR')}</strong>
+                        </div>
+                    </div>
+                </section>
+                <section>
+                    <h2>Conversations remarquables</h2>
+                    <div class="card-grid">
+                        ${
+                            maxConversation
+                                ? `
+                                    <div class="card">
+                                        <h3>Conversation la plus active</h3>
+                                        <p><strong>${escapeHTML(maxConversation.title)}</strong></p>
+                                        <p>${maxConversation.userPrompts} prompts · ${maxConversation.totalCharacters.toLocaleString('fr-FR')} caractères</p>
+                                        ${buildLink(maxConversation)}
+                                    </div>
+                                `
+                                : ''
+                        }
+                        ${
+                            secondMaxConversation
+                                ? `
+                                    <div class="card">
+                                        <h3>Deuxième plus active</h3>
+                                        <p><strong>${escapeHTML(secondMaxConversation.title)}</strong></p>
+                                        <p>${secondMaxConversation.userPrompts} prompts · ${secondMaxConversation.totalCharacters.toLocaleString('fr-FR')} caractères</p>
+                                        ${buildLink(secondMaxConversation)}
+                                    </div>
+                                `
+                                : ''
+                        }
+                        ${
+                            minConversation
+                                ? `
+                                    <div class="card">
+                                        <h3>Conversation la plus courte</h3>
+                                        <p><strong>${escapeHTML(minConversation.title)}</strong></p>
+                                        <p>${minConversation.userPrompts} prompts · ${minConversation.totalCharacters.toLocaleString('fr-FR')} caractères</p>
+                                        ${buildLink(minConversation)}
+                                    </div>
+                                `
+                                : ''
+                        }
+                        ${
+                            secondMinConversation
+                                ? `
+                                    <div class="card">
+                                        <h3>Deuxième plus courte</h3>
+                                        <p><strong>${escapeHTML(secondMinConversation.title)}</strong></p>
+                                        <p>${secondMinConversation.userPrompts} prompts · ${secondMinConversation.totalCharacters.toLocaleString('fr-FR')} caractères</p>
+                                        ${buildLink(secondMinConversation)}
+                                    </div>
+                                `
+                                : ''
+                        }
+                    </div>
+                </section>
+                <section>
+                    <h2>Top 5 des conversations par nombre de prompts</h2>
+                    <div class="bar-chart">
+                        ${renderBarChart(metrics)}
+                    </div>
+                </section>
+            `;
+        }
+
+        function handleJsonImport(file, textContent) {
+            try {
+                const parsed = JSON.parse(textContent);
+                if (!Array.isArray(parsed)) {
+                    throw new Error('Le fichier doit contenir un tableau de conversations.');
+                }
+
+                const validConversations = [];
+                invalidItems = 0;
+
+                for (const conversation of parsed) {
+                    if (validateConversation(conversation)) {
+                        validConversations.push(conversation);
+                    } else {
+                        invalidItems += 1;
+                    }
+                }
+
+                if (!validConversations.length) {
+                    resetState();
+                    showNotification('Aucune conversation valide détectée dans le fichier.', 'error');
+                    return;
+                }
+
+                jsonData = validConversations;
+                analyserBtn.disabled = false;
+                showNotification('Fichier JSON prêt à être analysé.', 'success');
+                renderFileInfo(file, validConversations.length);
+            } catch (error) {
+                resetState();
+                showNotification(`Erreur lors du chargement : ${error.message}`, 'error');
+            }
+        }
+
+        function readFile(file) {
+            if (!file) {
+                return;
+            }
+
+            const isJsonType = file.type === 'application/json' || file.type === '';
+            const hasJsonExtension = file.name?.toLowerCase().endsWith('.json');
+            if (!isJsonType && !hasJsonExtension) {
+                showNotification('Veuillez sélectionner un fichier JSON valide.', 'error');
+                return;
+            }
+
+            const reader = new FileReader();
+            reader.onload = (event) => handleJsonImport(file, event.target.result);
+            reader.onerror = () => showNotification('Impossible de lire le fichier sélectionné.', 'error');
+            reader.readAsText(file);
+        }
+
+        dropzone.addEventListener('click', () => fileInput.click());
+
+        dropzone.addEventListener('dragover', (event) => {
+            event.preventDefault();
             dropzone.classList.add('dragover');
         });
 
@@ -93,156 +614,31 @@
             dropzone.classList.remove('dragover');
         });
 
-        dropzone.addEventListener('drop', (e) => {
-            e.preventDefault();
+        dropzone.addEventListener('drop', (event) => {
+            event.preventDefault();
             dropzone.classList.remove('dragover');
+            const [file] = event.dataTransfer.files;
+            if (file) {
+                readFile(file);
+            }
+        });
 
-            const file = e.dataTransfer.files[0];
-            const reader = new FileReader();
-
-            reader.onload = (event) => {
-                jsonData = JSON.parse(event.target.result);
-                alert('Fichier JSON chargé avec succès. Cliquez sur "Analyser" pour voir les résultats.');
-            };
-
-            reader.readAsText(file);
+        fileInput.addEventListener('change', (event) => {
+            const [file] = event.target.files;
+            if (file) {
+                readFile(file);
+            }
         });
 
         analyserBtn.addEventListener('click', () => {
-            if (!jsonData) {
-                alert('Veuillez d\'abord déposer un fichier JSON.');
+            if (!jsonData.length) {
+                showNotification('Veuillez charger un fichier avant d\'analyser.', 'error');
                 return;
             }
 
-            const promptsCount = compterPrompts(jsonData);
-            const conversations = jsonData.length;
-            const promptsPerConversation = (promptsCount / conversations).toFixed(2);
-            const maxPromptsConversation = getMaxPromptsConversation(jsonData);
-            const minPromptsConversation = getMinPromptsConversation(jsonData);
-            const secondMinPromptsConversation = getSecondMinPromptsConversation(jsonData);
-            const secondMaxPromptsConversation = getSecondMaxPromptsConversation(jsonData);
-            const totalCharacters = getTotalCharacters(jsonData);
-
-            resultsDiv.innerHTML = `
-                <div class="result-item"><span>Nombre total de conversations:</span> ${conversations}</div>
-                <div class="result-item"><span>Nombre total de prompts:</span> ${promptsCount}</div>
-                <div class="result-item"><span>Nombre moyen de prompts par conversation:</span> ${promptsPerConversation}</div>
-                <div class="result-item"><span>Nombre max de prompts dans une conversation:</span> ${maxPromptsConversation}</div>
-                <div class="result-item"><span>Conversation avec le plus de prompts:</span> ${getConversationTitle(jsonData, maxPromptsConversation)}</div>
-                <div class="result-item"><span>Lien de la conversation avec le plus de prompts:</span> <a href="https://chatgpt.com/c/${getConversationId(jsonData, maxPromptsConversation)}" target="_blank">https://chatgpt.com/c/${getConversationId(jsonData, maxPromptsConversation)}</a></div>
-                <div class="result-item"><span>Conversation avec le moins de prompts:</span> ${getConversationTitle(jsonData, minPromptsConversation)}</div>
-                <div class="result-item"><span>Deuxième conversation avec le moins de prompts:</span> ${getConversationTitle(jsonData, secondMinPromptsConversation)}</div>
-                <div class="result-item"><span>Deuxième conversation avec le plus de prompts:</span> ${getConversationTitle(jsonData, secondMaxPromptsConversation)}</div>
-                <div class="result-item"><span>Nombre de prompts dans la deuxième conversation avec le plus de prompts:</span> ${getPromptsCount(jsonData, secondMaxPromptsConversation)}</div>
-                <div class="result-item"><span>Cumul des deux plus grandes conversations:</span> ${getTotalPrompts(jsonData, maxPromptsConversation, secondMaxPromptsConversation)}</div>
-                <div class="result-item"><span>Nombre total de caractères dans les conversations:</span> ${totalCharacters}
-            `;
+            const stats = buildStats(jsonData);
+            renderResults(stats);
         });
-
-        function compterPrompts(jsonData) {
-            let promptsCount = 0;
-            for (const item of jsonData) {
-                for (const key in item.mapping) {
-                    const value = item.mapping[key];
-                    if (value.message && value.message.author.role === 'user') {
-                        promptsCount++;
-                    }
-                }
-            }
-            return promptsCount;
-        }
-
-        function getMaxPromptsConversation(jsonData) {
-            let maxPrompts = 0;
-            for (const item of jsonData) {
-                const promptsCount = Object.keys(item.mapping).length;
-                if (promptsCount > maxPrompts) {
-                    maxPrompts = promptsCount;
-                }
-            }
-            return maxPrompts;
-        }
-
-        function getMinPromptsConversation(jsonData) {
-            let minPrompts = Infinity;
-            for (const item of jsonData) {
-                const promptsCount = Object.keys(item.mapping).length;
-                if (promptsCount < minPrompts) {
-                    minPrompts = promptsCount;
-                }
-            }
-            return minPrompts;
-        }
-
-        function getSecondMinPromptsConversation(jsonData) {
-            const minPrompts = getMinPromptsConversation(jsonData);
-            let secondMinPrompts = Infinity;
-            for (const item of jsonData) {
-                const promptsCount = Object.keys(item.mapping).length;
-                if (promptsCount > minPrompts && promptsCount < secondMinPrompts) {
-                    secondMinPrompts = promptsCount;
-                }
-            }
-            return secondMinPrompts;
-        }
-
-        function getSecondMaxPromptsConversation(jsonData) {
-            const maxPrompts = getMaxPromptsConversation(jsonData);
-            let secondMaxPrompts = 0;
-            for (const item of jsonData) {
-                const promptsCount = Object.keys(item.mapping).length;
-                if (promptsCount < maxPrompts && promptsCount > secondMaxPrompts) {
-                    secondMaxPrompts = promptsCount;
-                }
-            }
-            return secondMaxPrompts;
-        }
-
-        function getConversationTitle(jsonData, promptsCount) {
-            for (const item of jsonData) {
-                if (Object.keys(item.mapping).length === promptsCount) {
-                    return item.title;
-                }
-            }
-            return '';
-        }
-
-        function getConversationId(jsonData, promptsCount) {
-            for (const item of jsonData) {
-                if (Object.keys(item.mapping).length === promptsCount) {
-                    return item.conversation_id;
-                }
-            }
-            return '';
-        }
-
-        function getPromptsCount(jsonData, promptsCount) {
-            for (const item of jsonData) {
-                if (Object.keys(item.mapping).length === promptsCount) {
-                    return Object.keys(item.mapping).length;
-                }
-            }
-            return 0;
-        }
-
-        function getTotalPrompts(jsonData, maxPrompts, secondMaxPrompts) {
-            let totalPrompts = 0;
-            for (const item of jsonData) {
-                const promptsCount = Object.keys(item.mapping).length;
-                if (promptsCount === maxPrompts || promptsCount === secondMaxPrompts) {
-                    totalPrompts += promptsCount;
-                }
-            }
-            return totalPrompts;
-        }
-
-        function getTotalCharacters(jsonData) {
-            let totalCharacters = 0;
-            for (const item of jsonData) {
-                totalCharacters += item.title.length;
-            }
-            return totalCharacters;
-        }
     </script>
 </body>
 
